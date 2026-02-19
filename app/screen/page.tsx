@@ -80,7 +80,7 @@ function generateComps(anchor: string, rawStocks: Stock[]): WorkingSet {
 export default function ScreenPage() {
   const router = useRouter();
   const { watchlist, toggle } = useWatchlist();
-  const { customStocks, addCustomStock } = useCustomStocks();
+  const { customStocks, addCustomStock, clearCustomStocks } = useCustomStocks();
   const [filters, setFilters] = useState<Filters>({
     sector: "all",
     marketCap: "all",
@@ -107,6 +107,13 @@ export default function ScreenPage() {
     (stock: Stock) => addCustomStock(stock),
     [addCustomStock]
   );
+
+  const handleClear = useCallback(() => {
+    if (window.confirm(`Remove all ${rawStocks.length} stocks from your universe?`)) {
+      clearCustomStocks();
+      setSelectedTicker("");
+    }
+  }, [rawStocks.length, clearCustomStocks]);
 
   const handleGenerate = useCallback(() => {
     if (!selectedTicker || rawStocks.length === 0) return;
@@ -141,6 +148,19 @@ export default function ScreenPage() {
           existingTickers={rawStocks.map((s) => s.ticker)}
           onAdd={handleAddStock}
         />
+        {rawStocks.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="rounded border px-2.5 py-1.5 text-xs transition-colors hover:opacity-80"
+            style={{
+              background: "var(--bg-elevated)",
+              borderColor: "var(--border)",
+              color: "var(--red)",
+            }}
+          >
+            Clear universe
+          </button>
+        )}
       </div>
 
       {rawStocks.length === 0 ? (

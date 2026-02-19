@@ -67,7 +67,11 @@ export function useCustomStocks() {
     [customStocks, persist]
   );
 
-  return { customStocks, addCustomStock, removeCustomStock };
+  const clearCustomStocks = useCallback(() => {
+    persist([]);
+  }, [persist]);
+
+  return { customStocks, addCustomStock, removeCustomStock, clearCustomStocks };
 }
 
 // ---------------------------------------------------------------------------
