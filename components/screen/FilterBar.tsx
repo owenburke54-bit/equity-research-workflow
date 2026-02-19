@@ -18,6 +18,7 @@ export interface Filters {
   sortBy: SortKey;
   sortDir: "asc" | "desc";
   search: string;
+  showIncomplete: boolean;
 }
 
 interface FilterBarProps {
@@ -132,6 +133,20 @@ export default function FilterBar({ filters, onChange, sectors }: FilterBarProps
           {filters.sortDir === "asc" ? "↑ Asc" : "↓ Desc"}
         </button>
       </div>
+
+      {/* Show incomplete */}
+      <label
+        className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+        style={{ color: "var(--text-muted)" }}
+      >
+        <input
+          type="checkbox"
+          checked={filters.showIncomplete}
+          onChange={(e) => set({ showIncomplete: e.target.checked })}
+          style={{ accentColor: "var(--blue, #3b82f6)" }}
+        />
+        Show stocks with missing data
+      </label>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, startTransition } from "react";
-import type { CompsRow, ThesisNote, ChecklistItem } from "./types";
+import type { Stock, CompsRow, ThesisNote, ChecklistItem } from "./types";
 
 const DEFAULT_CHECKLIST: ChecklistItem[] = [
   { id: "1", label: "Download 10-K / 20-F", done: false },
@@ -33,6 +33,41 @@ function writeStorage<T>(key: string, value: T): void {
   } catch {
     // quota exceeded or private mode
   }
+}
+
+// ---------------------------------------------------------------------------
+// useCustomStocks
+// ---------------------------------------------------------------------------
+export function useCustomStocks() {
+  const [customStocks, setCustomStocks] = useState<Stock[]>([]);
+
+  useEffect(() => {
+    startTransition(() => {
+      setCustomStocks(readStorage<Stock[]>("er:custom-stocks", []));
+    });
+  }, []);
+
+  const persist = useCallback((next: Stock[]) => {
+    setCustomStocks(next);
+    writeStorage("er:custom-stocks", next);
+  }, []);
+
+  const addCustomStock = useCallback(
+    (stock: Stock) => {
+      if (customStocks.find((s) => s.ticker === stock.ticker)) return;
+      persist([...customStocks, stock]);
+    },
+    [customStocks, persist]
+  );
+
+  const removeCustomStock = useCallback(
+    (ticker: string) => {
+      persist(customStocks.filter((s) => s.ticker !== ticker));
+    },
+    [customStocks, persist]
+  );
+
+  return { customStocks, addCustomStock, removeCustomStock };
 }
 
 // ---------------------------------------------------------------------------

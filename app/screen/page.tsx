@@ -3,10 +3,11 @@
 import { useMemo, useState, useEffect, startTransition, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { SECTOR_LIST } from "@/lib/stock-universe";
-import { useWatchlist } from "@/lib/storage";
+import { useWatchlist, useCustomStocks } from "@/lib/storage";
 import FilterBar, { type Filters } from "@/components/screen/FilterBar";
 import StockTable from "@/components/screen/StockTable";
 import SelectionBar from "@/components/screen/SelectionBar";
+import AddStockInput from "@/components/screen/AddStockInput";
 import type { Stock, WorkingSet } from "@/lib/types";
 
 function applyFilters(stocks: Stock[], filters: Filters, watchlist: string[]): Stock[] {
@@ -14,6 +15,10 @@ function applyFilters(stocks: Stock[], filters: Filters, watchlist: string[]): S
     ...s,
     isWatchlisted: watchlist.includes(s.ticker),
   }));
+
+  if (!filters.showIncomplete) {
+    result = result.filter((s) => s.price > 0 && s.marketCap > 0);
+  }
 
   if (filters.search) {
     const q = filters.search.toLowerCase();
@@ -75,7 +80,8 @@ function generateComps(anchor: string, rawStocks: Stock[]): WorkingSet {
 export default function ScreenPage() {
   const router = useRouter();
   const { watchlist, toggle } = useWatchlist();
-  const [rawStocks, setRawStocks] = useState<Stock[]>([]);
+  const { customStocks, addCustomStock } = useCustomStocks();
+  const [baseStocks, setBaseStocks] = useState<Stock[]>([]);
   const [dataSource, setDataSource] = useState<"loading" | "live" | "mock">("loading");
   const [filters, setFilters] = useState<Filters>({
     sector: "all",
@@ -83,6 +89,7 @@ export default function ScreenPage() {
     sortBy: "marketCap",
     sortDir: "desc",
     search: "",
+    showIncomplete: false,
   });
   const [selectedTicker, setSelectedTicker] = useState<string>("");
 
@@ -91,22 +98,39 @@ export default function ScreenPage() {
       .then((r) => r.json())
       .then((data: { stocks: Stock[]; live: boolean; total: number }) => {
         startTransition(() => {
-          setRawStocks(data.stocks);
+          setBaseStocks(data.stocks);
           setDataSource(data.live ? "live" : "mock");
         });
       })
       .catch(() => startTransition(() => setDataSource("mock")));
   }, []);
 
+  // Merge API stocks with custom (localStorage) stocks; custom stocks deduplicated against base
+  const rawStocks = useMemo(() => {
+    const apiTickers = new Set(baseStocks.map((s) => s.ticker));
+    return [...baseStocks, ...customStocks.filter((s) => !apiTickers.has(s.ticker))];
+  }, [baseStocks, customStocks]);
+
   const stocks = useMemo(
     () => applyFilters(rawStocks, filters, watchlist),
     [rawStocks, filters, watchlist]
   );
 
+  const completeCount = useMemo(
+    () => rawStocks.filter((s) => s.price > 0 && s.marketCap > 0).length,
+    [rawStocks]
+  );
+
+  const handleAddStock = useCallback(
+    (stock: Stock) => {
+      addCustomStock(stock);
+    },
+    [addCustomStock]
+  );
+
   const handleGenerate = useCallback(() => {
     if (!selectedTicker || rawStocks.length === 0) return;
     const ws = generateComps(selectedTicker, rawStocks);
-    // Write synchronously before navigation
     try {
       localStorage.setItem("er:working-set", JSON.stringify(ws));
     } catch {
@@ -150,12 +174,16 @@ export default function ScreenPage() {
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
           {dataSource === "loading"
             ? `Loading ${rawStocks.length > 0 ? rawStocks.length : "…"} stocks`
-            : `${stocks.length} of ${rawStocks.length} stocks · ${watchlist.length} watchlisted · click a row to select anchor`}
+            : `${stocks.length} shown · ${completeCount}/${rawStocks.length} with complete data · ${watchlist.length} watchlisted · click a row to select anchor`}
         </p>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-start gap-4">
         <FilterBar filters={filters} onChange={setFilters} sectors={SECTOR_LIST} />
+        <AddStockInput
+          existingTickers={rawStocks.map((s) => s.ticker)}
+          onAdd={handleAddStock}
+        />
       </div>
 
       {dataSource === "loading" && rawStocks.length === 0 ? (
