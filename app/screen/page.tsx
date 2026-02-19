@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, startTransition, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { SECTOR_LIST } from "@/lib/stock-universe";
 import { useWatchlist, useCustomStocks } from "@/lib/storage";
@@ -81,8 +81,6 @@ export default function ScreenPage() {
   const router = useRouter();
   const { watchlist, toggle } = useWatchlist();
   const { customStocks, addCustomStock } = useCustomStocks();
-  const [baseStocks, setBaseStocks] = useState<Stock[]>([]);
-  const [dataSource, setDataSource] = useState<"loading" | "live" | "mock">("loading");
   const [filters, setFilters] = useState<Filters>({
     sector: "all",
     marketCap: "all",
@@ -93,23 +91,7 @@ export default function ScreenPage() {
   });
   const [selectedTicker, setSelectedTicker] = useState<string>("");
 
-  useEffect(() => {
-    fetch("/api/quotes")
-      .then((r) => r.json())
-      .then((data: { stocks: Stock[]; live: boolean; total: number }) => {
-        startTransition(() => {
-          setBaseStocks(data.stocks);
-          setDataSource(data.live ? "live" : "mock");
-        });
-      })
-      .catch(() => startTransition(() => setDataSource("mock")));
-  }, []);
-
-  // Merge API stocks with custom (localStorage) stocks; custom stocks deduplicated against base
-  const rawStocks = useMemo(() => {
-    const apiTickers = new Set(baseStocks.map((s) => s.ticker));
-    return [...baseStocks, ...customStocks.filter((s) => !apiTickers.has(s.ticker))];
-  }, [baseStocks, customStocks]);
+  const rawStocks = customStocks;
 
   const stocks = useMemo(
     () => applyFilters(rawStocks, filters, watchlist),
@@ -122,9 +104,7 @@ export default function ScreenPage() {
   );
 
   const handleAddStock = useCallback(
-    (stock: Stock) => {
-      addCustomStock(stock);
-    },
+    (stock: Stock) => addCustomStock(stock),
     [addCustomStock]
   );
 
@@ -142,40 +122,17 @@ export default function ScreenPage() {
   return (
     <div className="mx-auto max-w-7xl px-6 py-8" style={{ paddingBottom: selectedTicker ? "5rem" : undefined }}>
       <div className="mb-6 flex flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h1
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: "var(--text-primary)" }}
-          >
-            Screener
-          </h1>
-          {dataSource === "loading" && (
-            <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-              Fetching live data…
-            </span>
-          )}
-          {dataSource === "live" && (
-            <span
-              className="rounded px-2 py-0.5 text-xs"
-              style={{ background: "var(--bg-elevated)", color: "var(--green)" }}
-            >
-              ● Live · Yahoo Finance
-            </span>
-          )}
-          {dataSource === "mock" && (
-            <span
-              className="rounded px-2 py-0.5 text-xs"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-muted)" }}
-            >
-              ○ Unavailable
-            </span>
-          )}
-        </div>
-        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {dataSource === "loading"
-            ? `Loading ${rawStocks.length > 0 ? rawStocks.length : "…"} stocks`
-            : `${stocks.length} shown · ${completeCount}/${rawStocks.length} with complete data · ${watchlist.length} watchlisted · click a row to select anchor`}
-        </p>
+        <h1
+          className="text-2xl font-bold tracking-tight"
+          style={{ color: "var(--text-primary)" }}
+        >
+          Screener
+        </h1>
+        {rawStocks.length > 0 && (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {`${stocks.length} shown · ${completeCount}/${rawStocks.length} with complete data · ${watchlist.length} watchlisted · click a row to select anchor`}
+          </p>
+        )}
       </div>
 
       <div className="mb-4 flex flex-wrap items-start gap-4">
@@ -186,16 +143,17 @@ export default function ScreenPage() {
         />
       </div>
 
-      {dataSource === "loading" && rawStocks.length === 0 ? (
+      {rawStocks.length === 0 ? (
         <div
-          className="rounded-lg border p-12 text-center text-sm"
-          style={{
-            background: "var(--bg-surface)",
-            borderColor: "var(--border)",
-            color: "var(--text-muted)",
-          }}
+          className="rounded-lg border p-16 text-center"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
         >
-          Loading quotes for S&amp;P 500 + notable stocks…
+          <p className="mb-1 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            Your universe is empty
+          </p>
+          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+            Type a ticker above to add stocks from Yahoo Finance.
+          </p>
         </div>
       ) : (
         <StockTable
