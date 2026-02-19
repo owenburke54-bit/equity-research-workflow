@@ -1,8 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { CompsRow } from "@/lib/types";
 import Button from "@/components/ui/Button";
+
+type MultipleField = "peRatio" | "evEbitda" | "evRevenue";
 
 interface AnchorValuation {
   pePremiumPct: number | null;
@@ -15,6 +17,7 @@ interface CompsTableProps {
   anchorTicker?: string;
   loading?: boolean;
   anchorValuation?: AnchorValuation;
+  onOverride?: (ticker: string, field: MultipleField, value: number) => void;
 }
 
 function fmt(n: number, decimals = 1) {
@@ -48,6 +51,64 @@ function PremiumBadge({ pct }: { pct: number }) {
   return (
     <span className="ml-1.5 text-xs font-medium" style={{ color }}>
       {arrow}{sign}{pct.toFixed(1)}%
+    </span>
+  );
+}
+
+function EditableMultiple({
+  value,
+  onSave,
+}: {
+  value: number;
+  onSave: (v: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function commit() {
+    const v = parseFloat(draft);
+    if (!isNaN(v) && v >= 0) onSave(v);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type="number"
+        min="0"
+        step="0.1"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") commit();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className="w-16 rounded border px-1 py-0.5 text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+        style={{
+          background: "var(--bg-elevated)",
+          borderColor: "var(--blue)",
+          color: "var(--text-primary)",
+        }}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => {
+        setDraft(value > 0 ? value.toFixed(1) : "");
+        setEditing(true);
+      }}
+      title="Click to edit"
+      className="cursor-pointer rounded px-1 transition-colors hover:bg-zinc-700/50"
+    >
+      {value > 0 ? (
+        `${value.toFixed(1)}x`
+      ) : (
+        <span style={{ color: "var(--text-muted)", opacity: 0.5 }}>—</span>
+      )}
     </span>
   );
 }
@@ -95,6 +156,7 @@ export default function CompsTable({
   anchorTicker,
   loading,
   anchorValuation,
+  onOverride,
 }: CompsTableProps) {
   if (loading) {
     return (
@@ -214,19 +276,32 @@ export default function CompsTable({
                   {fmtMBT(r.ebitda)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmt(r.peRatio)}x
-                  {isAnchor && anchorValuation?.pePremiumPct != null && (
-                    <PremiumBadge pct={anchorValuation.pePremiumPct} />
-                  )}
+                  <span className="inline-flex items-center justify-end">
+                    <EditableMultiple
+                      value={r.peRatio}
+                      onSave={(v) => onOverride?.(r.ticker, "peRatio", v)}
+                    />
+                    {isAnchor && anchorValuation?.pePremiumPct != null && (
+                      <PremiumBadge pct={anchorValuation.pePremiumPct} />
+                    )}
+                  </span>
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmt(r.evEbitda)}x
-                  {isAnchor && anchorValuation?.evEbitdaPremiumPct != null && (
-                    <PremiumBadge pct={anchorValuation.evEbitdaPremiumPct} />
-                  )}
+                  <span className="inline-flex items-center justify-end">
+                    <EditableMultiple
+                      value={r.evEbitda}
+                      onSave={(v) => onOverride?.(r.ticker, "evEbitda", v)}
+                    />
+                    {isAnchor && anchorValuation?.evEbitdaPremiumPct != null && (
+                      <PremiumBadge pct={anchorValuation.evEbitdaPremiumPct} />
+                    )}
+                  </span>
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmt(r.evRevenue)}x
+                  <EditableMultiple
+                    value={r.evRevenue}
+                    onSave={(v) => onOverride?.(r.ticker, "evRevenue", v)}
+                  />
                 </td>
                 <td className={`${tdClass} text-center`}>
                   {!isAnchor && (

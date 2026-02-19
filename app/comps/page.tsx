@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkingSet, useResearchSets } from "@/lib/working-set";
 import CompsTable from "@/components/comps/CompsTable";
 import type { CompsRow, ResearchSet } from "@/lib/types";
 import Link from "next/link";
+
+type MultipleField = "peRatio" | "evEbitda" | "evRevenue";
+type Overrides = Record<string, Partial<Record<MultipleField, number>>>;
 
 function exportCsv(rows: CompsRow[], anchorTicker: string) {
   const headers = ["Ticker", "Name", "Mkt Cap ($B)", "EV ($B)", "Revenue ($B)", "EBITDA ($B)", "P/E", "EV/EBITDA", "EV/Rev"];
@@ -60,9 +63,26 @@ export default function CompsPage() {
   const [rows, setRows] = useState<CompsRow[]>([]);
   const [anchorPrice, setAnchorPrice] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [overrides, setOverrides] = useState<Overrides>({});
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Load persisted overrides on mount
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("er:comps-overrides") ?? "{}") as Overrides;
+      setOverrides(stored);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Merge API rows with manual overrides
+  const effectiveRows = useMemo(
+    () => rows.map((r) => ({ ...r, ...(overrides[r.ticker] ?? {}) })),
+    [rows, overrides]
+  );
 
   const compKey = ws?.compTickers.join(",") ?? "";
 
@@ -88,38 +108,54 @@ export default function CompsPage() {
       const validRows = results
         .map((r) => r.compsRow)
         .filter((r): r is CompsRow => r !== null);
-
       const anchorResult = results.find((r) => r.ticker === anchorTicker);
-      const price = anchorResult?.price ?? 0;
-
       setRows(validRows);
-      setAnchorPrice(price);
-
-      // Write valuation data to localStorage for thesis page to consume
-      if (price > 0 && validRows.length > 1) {
-        const anchorRow = validRows.find((r) => r.ticker === anchorTicker);
-        if (anchorRow) {
-          const medPE = medianOf(validRows.map((r) => r.peRatio));
-          const medEvEbitda = medianOf(validRows.map((r) => r.evEbitda));
-          const impliedPricePE =
-            anchorRow.peRatio > 0 && medPE && medPE > 0
-              ? price * (medPE / anchorRow.peRatio)
-              : 0;
-          const impliedPriceEvEbitda =
-            anchorRow.evEbitda > 0 && medEvEbitda && medEvEbitda > 0
-              ? price * (medEvEbitda / anchorRow.evEbitda)
-              : 0;
-          localStorage.setItem(
-            `er:rel-val:${anchorTicker}`,
-            JSON.stringify({ anchorPrice: price, impliedPricePE, impliedPriceEvEbitda })
-          );
-        }
-      }
-
+      setAnchorPrice(anchorResult?.price ?? 0);
       setLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws?.anchorTicker, compKey]);
+
+  // Keep er:rel-val in sync whenever effective rows or price change
+  useEffect(() => {
+    const anchorTicker = ws?.anchorTicker;
+    if (!anchorTicker || anchorPrice <= 0 || effectiveRows.length <= 1) return;
+    const anchorRow = effectiveRows.find((r) => r.ticker === anchorTicker);
+    if (!anchorRow) return;
+    const medPE = medianOf(effectiveRows.map((r) => r.peRatio));
+    const medEvEbitda = medianOf(effectiveRows.map((r) => r.evEbitda));
+    const impliedPricePE =
+      anchorRow.peRatio > 0 && medPE && medPE > 0
+        ? anchorPrice * (medPE / anchorRow.peRatio)
+        : 0;
+    const impliedPriceEvEbitda =
+      anchorRow.evEbitda > 0 && medEvEbitda && medEvEbitda > 0
+        ? anchorPrice * (medEvEbitda / anchorRow.evEbitda)
+        : 0;
+    localStorage.setItem(
+      `er:rel-val:${anchorTicker}`,
+      JSON.stringify({ anchorPrice, impliedPricePE, impliedPriceEvEbitda })
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveRows, anchorPrice, ws?.anchorTicker]);
+
+  const handleOverride = useCallback(
+    (ticker: string, field: MultipleField, value: number) => {
+      setOverrides((prev) => {
+        const tickerOverrides = { ...prev[ticker] };
+        if (value === 0) {
+          delete tickerOverrides[field];
+        } else {
+          tickerOverrides[field] = value;
+        }
+        const next = { ...prev, [ticker]: tickerOverrides };
+        if (Object.keys(tickerOverrides).length === 0) delete next[ticker];
+        localStorage.setItem("er:comps-overrides", JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
 
   const handleSave = useCallback(() => {
     if (!ws || !saveName.trim()) return;
@@ -138,7 +174,7 @@ export default function CompsPage() {
       createdAt: new Date().toISOString(),
       anchorTicker: ws.anchorTicker,
       compTickers: ws.compTickers,
-      compsSnapshot: rows,
+      compsSnapshot: effectiveRows,
       thesis,
       assumptions: "",
     };
@@ -146,7 +182,7 @@ export default function CompsPage() {
     setSaved(true);
     setSaving(false);
     setSaveName("");
-  }, [ws, saveName, rows, saveSet]);
+  }, [ws, saveName, effectiveRows, saveSet]);
 
   if (!ws) {
     return (
@@ -171,10 +207,10 @@ export default function CompsPage() {
     );
   }
 
-  // Derived valuation values for snapshot card
-  const anchorRow = rows.find((r) => r.ticker === ws.anchorTicker) ?? null;
-  const medPE = rows.length > 1 ? medianOf(rows.map((r) => r.peRatio)) : null;
-  const medEvEbitda = rows.length > 1 ? medianOf(rows.map((r) => r.evEbitda)) : null;
+  // Derived valuation values for snapshot card (use effective rows)
+  const anchorRow = effectiveRows.find((r) => r.ticker === ws.anchorTicker) ?? null;
+  const medPE = effectiveRows.length > 1 ? medianOf(effectiveRows.map((r) => r.peRatio)) : null;
+  const medEvEbitda = effectiveRows.length > 1 ? medianOf(effectiveRows.map((r) => r.evEbitda)) : null;
   const anchorPE = anchorRow?.peRatio ?? 0;
   const anchorEvEbitda = anchorRow?.evEbitda ?? 0;
 
@@ -197,7 +233,7 @@ export default function CompsPage() {
 
   const showCard =
     anchorRow !== null &&
-    rows.length > 1 &&
+    effectiveRows.length > 1 &&
     (pePremiumPct !== null || evEbitdaPremiumPct !== null);
 
   return (
@@ -222,9 +258,9 @@ export default function CompsPage() {
 
           {/* CTA buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            {rows.length > 0 && (
+            {effectiveRows.length > 0 && (
               <button
-                onClick={() => exportCsv(rows, ws.anchorTicker)}
+                onClick={() => exportCsv(effectiveRows, ws.anchorTicker)}
                 className="rounded border px-3 py-1.5 text-sm transition-colors hover:bg-zinc-700"
                 style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
               >
@@ -238,7 +274,7 @@ export default function CompsPage() {
             >
               Promote to Thesis →
             </button>
-            {!saving && !saved && rows.length > 0 && (
+            {!saving && !saved && effectiveRows.length > 0 && (
               <button
                 onClick={() => setSaving(true)}
                 className="rounded bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-500"
@@ -352,15 +388,16 @@ export default function CompsPage() {
       )}
 
       <CompsTable
-        rows={rows}
+        rows={effectiveRows}
         onRemove={removeComp}
         anchorTicker={ws.anchorTicker}
         loading={loading}
         anchorValuation={
-          rows.length > 1 && anchorRow !== null
+          effectiveRows.length > 1 && anchorRow !== null
             ? { pePremiumPct, evEbitdaPremiumPct }
             : undefined
         }
+        onOverride={handleOverride}
       />
     </div>
   );
