@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import type { CompsRow } from "@/lib/types";
 import Button from "@/components/ui/Button";
 
@@ -55,6 +55,9 @@ function PremiumBadge({ pct }: { pct: number }) {
   );
 }
 
+// Always-visible input styled as text. key={value} resets it when an override
+// is applied from outside. onFocus strips the "x" suffix for clean editing;
+// onBlur restores it and saves if the value changed.
 function EditableMultiple({
   value,
   onSave,
@@ -62,54 +65,42 @@ function EditableMultiple({
   value: number;
   onSave: (v: number) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  function commit() {
-    const v = parseFloat(draft);
-    if (!isNaN(v) && v >= 0) onSave(v);
-    setEditing(false);
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    if (v.endsWith("x")) e.target.value = v.slice(0, -1);
+    e.target.select();
   }
 
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        type="number"
-        min="0"
-        step="0.1"
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") commit();
-          if (e.key === "Escape") setEditing(false);
-        }}
-        className="w-16 rounded border px-1 py-0.5 text-right text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-        style={{
-          background: "var(--bg-elevated)",
-          borderColor: "var(--blue)",
-          color: "var(--text-primary)",
-        }}
-      />
-    );
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const parsed = parseFloat(e.target.value.trim());
+    const saved = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    if (saved !== value) onSave(saved);
+    // Restore display format (with "x" suffix)
+    e.target.value = saved > 0 ? saved.toFixed(1) + "x" : "";
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+    if (e.key === "Escape") {
+      // Reset to original value without saving
+      (e.target as HTMLInputElement).value = value > 0 ? value.toFixed(1) : "";
+      (e.target as HTMLInputElement).blur();
+    }
   }
 
   return (
-    <span
-      onClick={() => {
-        setDraft(value > 0 ? value.toFixed(1) : "");
-        setEditing(true);
-      }}
+    <input
+      key={value}
+      type="text"
+      inputMode="decimal"
+      defaultValue={value > 0 ? value.toFixed(1) + "x" : ""}
+      placeholder="—"
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
       title="Click to edit"
-      className="cursor-pointer rounded px-1 transition-colors hover:bg-zinc-700/50"
-    >
-      {value > 0 ? (
-        `${value.toFixed(1)}x`
-      ) : (
-        <span style={{ color: "var(--text-muted)", opacity: 0.5 }}>—</span>
-      )}
-    </span>
+      className="w-14 cursor-pointer rounded border border-transparent bg-transparent px-1 text-right text-sm font-mono placeholder:opacity-40 transition-colors hover:border-zinc-600 focus:cursor-text focus:border-blue-500/60 focus:bg-[var(--bg-elevated)] focus:outline-none"
+    />
   );
 }
 
