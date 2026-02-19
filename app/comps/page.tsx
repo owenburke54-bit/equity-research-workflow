@@ -30,11 +30,35 @@ function exportCsv(rows: CompsRow[], anchorTicker: string) {
   URL.revokeObjectURL(url);
 }
 
+function medianOf(nums: number[]): number | null {
+  if (nums.length === 0) return null;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function PremiumBadge({ pct }: { pct: number }) {
+  const isDiscount = pct < 0;
+  const color = isDiscount ? "#22c55e" : "#ef4444";
+  const bg = isDiscount ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)";
+  return (
+    <span
+      className="rounded px-1.5 py-0.5 text-xs font-semibold"
+      style={{ background: bg, color }}
+    >
+      {isDiscount ? "▼" : "▲"}{pct >= 0 ? "+" : ""}{pct.toFixed(1)}%
+    </span>
+  );
+}
+
 export default function CompsPage() {
   const router = useRouter();
   const { ws, removeComp } = useWorkingSet();
   const { saveSet } = useResearchSets();
   const [rows, setRows] = useState<CompsRow[]>([]);
+  const [anchorPrice, setAnchorPrice] = useState(0);
   const [loading, setLoading] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -44,18 +68,54 @@ export default function CompsPage() {
 
   useEffect(() => {
     if (!ws) return;
-    const tickers = [ws.anchorTicker, ...ws.compTickers];
+    const anchorTicker = ws.anchorTicker;
+    const tickers = [anchorTicker, ...ws.compTickers];
     setLoading(true);
     setRows([]);
+    setAnchorPrice(0);
     Promise.all(
       tickers.map((t) =>
         fetch(`/api/quote/${t}`)
           .then((r) => r.json())
-          .then((d: { compsRow?: CompsRow }) => d.compsRow ?? null)
-          .catch(() => null)
+          .then((d: { compsRow?: CompsRow; stock?: { price: number } }) => ({
+            ticker: t,
+            compsRow: d.compsRow ?? null,
+            price: d.stock?.price ?? 0,
+          }))
+          .catch(() => ({ ticker: t, compsRow: null, price: 0 }))
       )
     ).then((results) => {
-      setRows(results.filter((r): r is CompsRow => r !== null));
+      const validRows = results
+        .map((r) => r.compsRow)
+        .filter((r): r is CompsRow => r !== null);
+
+      const anchorResult = results.find((r) => r.ticker === anchorTicker);
+      const price = anchorResult?.price ?? 0;
+
+      setRows(validRows);
+      setAnchorPrice(price);
+
+      // Write valuation data to localStorage for thesis page to consume
+      if (price > 0 && validRows.length > 1) {
+        const anchorRow = validRows.find((r) => r.ticker === anchorTicker);
+        if (anchorRow) {
+          const medPE = medianOf(validRows.map((r) => r.peRatio));
+          const medEvEbitda = medianOf(validRows.map((r) => r.evEbitda));
+          const impliedPricePE =
+            anchorRow.peRatio > 0 && medPE && medPE > 0
+              ? price * (medPE / anchorRow.peRatio)
+              : 0;
+          const impliedPriceEvEbitda =
+            anchorRow.evEbitda > 0 && medEvEbitda && medEvEbitda > 0
+              ? price * (medEvEbitda / anchorRow.evEbitda)
+              : 0;
+          localStorage.setItem(
+            `er:rel-val:${anchorTicker}`,
+            JSON.stringify({ anchorPrice: price, impliedPricePE, impliedPriceEvEbitda })
+          );
+        }
+      }
+
       setLoading(false);
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,6 +170,35 @@ export default function CompsPage() {
       </div>
     );
   }
+
+  // Derived valuation values for snapshot card
+  const anchorRow = rows.find((r) => r.ticker === ws.anchorTicker) ?? null;
+  const medPE = rows.length > 1 ? medianOf(rows.map((r) => r.peRatio)) : null;
+  const medEvEbitda = rows.length > 1 ? medianOf(rows.map((r) => r.evEbitda)) : null;
+  const anchorPE = anchorRow?.peRatio ?? 0;
+  const anchorEvEbitda = anchorRow?.evEbitda ?? 0;
+
+  const pePremiumPct =
+    anchorPrice > 0 && anchorPE > 0 && medPE && medPE > 0
+      ? ((anchorPE / medPE) - 1) * 100
+      : null;
+  const evEbitdaPremiumPct =
+    anchorPrice > 0 && anchorEvEbitda > 0 && medEvEbitda && medEvEbitda > 0
+      ? ((anchorEvEbitda / medEvEbitda) - 1) * 100
+      : null;
+  const impliedPricePE =
+    anchorPrice > 0 && anchorPE > 0 && medPE && medPE > 0
+      ? anchorPrice * (medPE / anchorPE)
+      : 0;
+  const impliedPriceEvEbitda =
+    anchorPrice > 0 && anchorEvEbitda > 0 && medEvEbitda && medEvEbitda > 0
+      ? anchorPrice * (medEvEbitda / anchorEvEbitda)
+      : 0;
+
+  const showCard =
+    anchorRow !== null &&
+    rows.length > 1 &&
+    (pePremiumPct !== null || evEbitdaPremiumPct !== null);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
@@ -207,24 +296,72 @@ export default function CompsPage() {
         )}
       </div>
 
-      {loading ? (
+      {/* Relative Valuation Snapshot */}
+      {showCard && (
         <div
-          className="rounded-lg border p-12 text-center text-sm"
-          style={{
-            background: "var(--bg-surface)",
-            borderColor: "var(--border)",
-            color: "var(--text-muted)",
-          }}
+          className="mb-6 rounded-lg border p-4"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
         >
-          Loading data for {ws.anchorTicker} + {ws.compTickers.length} peers…
+          <p
+            className="mb-3 text-xs font-semibold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Relative Valuation Snapshot
+          </p>
+          <div className="flex flex-col gap-2">
+            {pePremiumPct !== null && (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className="w-20 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  P/E
+                </span>
+                <span className="font-mono" style={{ color: "var(--text-primary)" }}>
+                  {anchorPE.toFixed(1)}x
+                </span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>vs median</span>
+                <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+                  {medPE!.toFixed(1)}x
+                </span>
+                <PremiumBadge pct={pePremiumPct} />
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>→ implied</span>
+                <span className="font-mono font-semibold" style={{ color: "var(--text-primary)" }}>
+                  ${impliedPricePE.toFixed(2)}
+                </span>
+              </div>
+            )}
+            {evEbitdaPremiumPct !== null && (
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className="w-20 text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+                  EV/EBITDA
+                </span>
+                <span className="font-mono" style={{ color: "var(--text-primary)" }}>
+                  {anchorEvEbitda.toFixed(1)}x
+                </span>
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>vs median</span>
+                <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+                  {medEvEbitda!.toFixed(1)}x
+                </span>
+                <PremiumBadge pct={evEbitdaPremiumPct} />
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>→ implied</span>
+                <span className="font-mono font-semibold" style={{ color: "var(--text-primary)" }}>
+                  ${impliedPriceEvEbitda.toFixed(2)}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      ) : (
-        <CompsTable
-          rows={rows}
-          onRemove={removeComp}
-          anchorTicker={ws.anchorTicker}
-        />
       )}
+
+      <CompsTable
+        rows={rows}
+        onRemove={removeComp}
+        anchorTicker={ws.anchorTicker}
+        loading={loading}
+        anchorValuation={
+          rows.length > 1 && anchorRow !== null
+            ? { pePremiumPct, evEbitdaPremiumPct }
+            : undefined
+        }
+      />
     </div>
   );
 }

@@ -16,6 +16,10 @@ function ThesisContent() {
   const [selectedTicker, setSelectedTicker] = useState(anchorParam ?? "");
   const { note, save } = useThesis(selectedTicker);
 
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [impliedPricePE, setImpliedPricePE] = useState(0);
+  const [impliedPriceEvEbitda, setImpliedPriceEvEbitda] = useState(0);
+
   // Default to first watchlisted ticker, then first available (only if no anchor param)
   useEffect(() => {
     if (selectedTicker) return;
@@ -24,6 +28,49 @@ function ThesisContent() {
       else setSelectedTicker(ALL_TICKERS[0]);
     });
   }, [watchlist, selectedTicker]);
+
+  // Load relative valuation data whenever the selected ticker changes
+  useEffect(() => {
+    if (!selectedTicker) return;
+
+    startTransition(() => {
+      setCurrentPrice(0);
+      setImpliedPricePE(0);
+      setImpliedPriceEvEbitda(0);
+    });
+
+    // Read implied prices written by comps page
+    try {
+      const stored = localStorage.getItem(`er:rel-val:${selectedTicker}`);
+      if (stored) {
+        const parsed = JSON.parse(stored) as {
+          anchorPrice?: number;
+          impliedPricePE?: number;
+          impliedPriceEvEbitda?: number;
+        };
+        startTransition(() => {
+          setImpliedPricePE(parsed.impliedPricePE ?? 0);
+          setImpliedPriceEvEbitda(parsed.impliedPriceEvEbitda ?? 0);
+        });
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    // Fetch live current price
+    fetch(`/api/quote/${selectedTicker}`)
+      .then((r) => r.json())
+      .then((d: { stock?: { price: number } }) => {
+        startTransition(() => {
+          setCurrentPrice(d.stock?.price ?? 0);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setCurrentPrice(0);
+        });
+      });
+  }, [selectedTicker]);
 
   const selectClass =
     "rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50";
@@ -73,7 +120,13 @@ function ThesisContent() {
 
       {selectedTicker ? (
         <div className="flex flex-col gap-5">
-          <ThesisEditor note={note} onSave={save} />
+          <ThesisEditor
+            note={note}
+            onSave={save}
+            currentPrice={currentPrice}
+            impliedPricePE={impliedPricePE}
+            impliedPriceEvEbitda={impliedPriceEvEbitda}
+          />
           <ModelChecklist note={note} onSave={save} />
         </div>
       ) : (

@@ -4,18 +4,28 @@ import React from "react";
 import type { CompsRow } from "@/lib/types";
 import Button from "@/components/ui/Button";
 
+interface AnchorValuation {
+  pePremiumPct: number | null;
+  evEbitdaPremiumPct: number | null;
+}
+
 interface CompsTableProps {
   rows: CompsRow[];
   onRemove: (ticker: string) => void;
   anchorTicker?: string;
+  loading?: boolean;
+  anchorValuation?: AnchorValuation;
 }
 
 function fmt(n: number, decimals = 1) {
   return n.toFixed(decimals);
 }
 
-function fmtB(n: number) {
-  return `$${n.toFixed(1)}B`;
+function fmtMBT(n: number): string {
+  if (n >= 1000) return `$${(n / 1000).toFixed(1)}T`;
+  if (n >= 1) return `$${n.toFixed(1)}B`;
+  if (n > 0) return `$${(n * 1000).toFixed(0)}M`;
+  return "—";
 }
 
 function median(nums: number[]): number | null {
@@ -30,7 +40,98 @@ function median(nums: number[]): number | null {
 const thClass = "px-3 py-2 text-left text-xs font-medium whitespace-nowrap";
 const tdClass = "px-3 py-2 text-sm whitespace-nowrap";
 
-export default function CompsTable({ rows, onRemove, anchorTicker }: CompsTableProps) {
+function PremiumBadge({ pct }: { pct: number }) {
+  const isDiscount = pct < 0;
+  const color = isDiscount ? "#22c55e" : "#ef4444";
+  const arrow = isDiscount ? "▼" : "▲";
+  const sign = pct >= 0 ? "+" : "";
+  return (
+    <span className="ml-1.5 text-xs font-medium" style={{ color }}>
+      {arrow}{sign}{pct.toFixed(1)}%
+    </span>
+  );
+}
+
+// Skeleton row widths (px) per data column: Ticker, Name, MktCap, EV, Rev, EBITDA, PE, EV/EBITDA, EV/Rev
+const SKELETON_ROWS: number[][] = [
+  [48, 112, 56, 56, 64, 56, 40, 44, 40],
+  [40, 96, 64, 64, 56, 48, 48, 40, 48],
+  [56, 128, 52, 56, 72, 56, 36, 48, 36],
+  [40, 80, 56, 52, 52, 56, 44, 40, 44],
+  [48, 112, 64, 64, 56, 44, 40, 36, 40],
+  [44, 88, 52, 56, 64, 48, 36, 44, 36],
+];
+
+const HEADERS = (
+  <tr style={{ background: "var(--bg-elevated)", borderBottom: "1px solid var(--border)" }}>
+    <th className={thClass} style={{ color: "var(--text-muted)" }}>Ticker</th>
+    <th className={thClass} style={{ color: "var(--text-muted)" }}>Name</th>
+    <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>Mkt Cap</th>
+    <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EV</th>
+    <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>Revenue</th>
+    <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EBITDA</th>
+    <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>P/E</th>
+    <th
+      className={`${thClass} text-right`}
+      style={{ color: "var(--text-muted)", cursor: "help" }}
+      title="Enterprise Value / EBITDA — lower multiple = cheaper"
+    >
+      EV/EBITDA
+    </th>
+    <th
+      className={`${thClass} text-right`}
+      style={{ color: "var(--text-muted)", cursor: "help" }}
+      title="Enterprise Value / Revenue — useful when EBITDA is negative or not meaningful"
+    >
+      EV/Rev
+    </th>
+    <th className={`${thClass} text-center`} style={{ color: "var(--text-muted)" }}></th>
+  </tr>
+);
+
+export default function CompsTable({
+  rows,
+  onRemove,
+  anchorTicker,
+  loading,
+  anchorValuation,
+}: CompsTableProps) {
+  if (loading) {
+    return (
+      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: "var(--border)" }}>
+        <table className="w-full border-collapse text-left">
+          <thead>{HEADERS}</thead>
+          <tbody>
+            {SKELETON_ROWS.map((widths, i) => (
+              <tr
+                key={i}
+                style={{
+                  background: i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-base)",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                {widths.map((w, j) => (
+                  <td key={j} className={j >= 2 ? `${tdClass} text-right` : tdClass}>
+                    <div
+                      className="animate-pulse rounded"
+                      style={{
+                        width: w,
+                        height: 12,
+                        background: "var(--bg-elevated)",
+                        marginLeft: j >= 2 ? "auto" : undefined,
+                      }}
+                    />
+                  </td>
+                ))}
+                <td className={tdClass} />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   if (rows.length === 0) {
     return (
       <div
@@ -68,25 +169,7 @@ export default function CompsTable({ rows, onRemove, anchorTicker }: CompsTableP
       style={{ borderColor: "var(--border)" }}
     >
       <table className="w-full border-collapse text-left">
-        <thead>
-          <tr
-            style={{
-              background: "var(--bg-elevated)",
-              borderBottom: `1px solid var(--border)`,
-            }}
-          >
-            <th className={thClass} style={{ color: "var(--text-muted)" }}>Ticker</th>
-            <th className={thClass} style={{ color: "var(--text-muted)" }}>Name</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>Mkt Cap</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EV</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>Revenue</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EBITDA</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>P/E</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EV/EBITDA</th>
-            <th className={`${thClass} text-right`} style={{ color: "var(--text-muted)" }}>EV/Rev</th>
-            <th className={`${thClass} text-center`} style={{ color: "var(--text-muted)" }}></th>
-          </tr>
-        </thead>
+        <thead>{HEADERS}</thead>
         <tbody>
           {sorted.map((r, i) => {
             const isAnchor = r.ticker === anchorTicker;
@@ -119,22 +202,28 @@ export default function CompsTable({ rows, onRemove, anchorTicker }: CompsTableP
                   {r.name}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-primary)" }}>
-                  {fmtB(r.marketCap)}
+                  {fmtMBT(r.marketCap)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-primary)" }}>
-                  {fmtB(r.ev)}
+                  {fmtMBT(r.ev)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmtB(r.revenue)}
+                  {fmtMBT(r.revenue)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmtB(r.ebitda)}
+                  {fmtMBT(r.ebitda)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
                   {fmt(r.peRatio)}x
+                  {isAnchor && anchorValuation?.pePremiumPct != null && (
+                    <PremiumBadge pct={anchorValuation.pePremiumPct} />
+                  )}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
                   {fmt(r.evEbitda)}x
+                  {isAnchor && anchorValuation?.evEbitdaPremiumPct != null && (
+                    <PremiumBadge pct={anchorValuation.evEbitdaPremiumPct} />
+                  )}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
                   {fmt(r.evRevenue)}x
@@ -167,16 +256,16 @@ export default function CompsTable({ rows, onRemove, anchorTicker }: CompsTableP
             </td>
             <td className={tdClass} />
             <td className={`${tdClass} text-right font-mono font-semibold`} style={{ color: "var(--text-primary)" }}>
-              {medMarketCap !== null ? fmtB(medMarketCap) : "—"}
+              {medMarketCap !== null ? fmtMBT(medMarketCap) : "—"}
             </td>
             <td className={`${tdClass} text-right font-mono font-semibold`} style={{ color: "var(--text-primary)" }}>
-              {medEv !== null ? fmtB(medEv) : "—"}
+              {medEv !== null ? fmtMBT(medEv) : "—"}
             </td>
             <td className={`${tdClass} text-right font-mono font-semibold`} style={{ color: "var(--text-secondary)" }}>
-              {medRevenue !== null ? fmtB(medRevenue) : "—"}
+              {medRevenue !== null ? fmtMBT(medRevenue) : "—"}
             </td>
             <td className={`${tdClass} text-right font-mono font-semibold`} style={{ color: "var(--text-secondary)" }}>
-              {medEbitda !== null ? fmtB(medEbitda) : "—"}
+              {medEbitda !== null ? fmtMBT(medEbitda) : "—"}
             </td>
             <td className={`${tdClass} text-right font-mono font-semibold`} style={{ color: "var(--text-secondary)" }}>
               {medPe !== null ? `${fmt(medPe)}x` : "—"}
