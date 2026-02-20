@@ -31,7 +31,7 @@ export default function ModelChecklist({ note, onSave }: ModelChecklistProps) {
           Model Build Checklist
         </h2>
         <span className="text-xs" style={{ color: done === total ? "var(--green)" : "var(--text-muted)" }}>
-          {done} / {total} complete
+          Model Progress: {done} / {total} ({total > 0 ? Math.round((done / total) * 100) : 0}%)
         </span>
       </div>
 

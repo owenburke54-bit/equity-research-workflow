@@ -14,8 +14,8 @@ const NAV_LINKS = [
 function Logomark() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <circle cx="10" cy="10" r="8.5" stroke="#3b82f6" strokeWidth="1" strokeOpacity="0.4" />
-      <circle cx="10" cy="10" r="4"   stroke="#3b82f6" strokeWidth="1.5" />
+      <circle cx="10" cy="10" r="8.5" stroke="#3b82f6" strokeWidth="0.75" strokeOpacity="0.35" />
+      <circle cx="10" cy="10" r="4"   stroke="#3b82f6" strokeWidth="1.25" />
     </svg>
   );
 }
@@ -29,10 +29,10 @@ export default function TopNav() {
       style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
     >
       {/* Logo */}
-      <Link href="/" className="flex items-center gap-2.5">
+      <Link href="/" className="flex items-center gap-2">
         <Logomark />
         <span
-          className="text-sm font-semibold tracking-tight"
+          className="text-sm font-bold tracking-tight"
           style={{ color: "var(--text-primary)" }}
         >
           Intrinsic

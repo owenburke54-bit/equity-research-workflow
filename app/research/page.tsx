@@ -30,21 +30,25 @@ export default function ResearchPage() {
 
       {!hydrated ? null : sets.length === 0 ? (
         <div
-          className="rounded-lg border p-12 text-center text-sm"
-          style={{
-            background: "var(--bg-surface)",
-            borderColor: "var(--border)",
-            color: "var(--text-muted)",
-          }}
+          className="rounded-lg border p-12 text-center"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
         >
-          <p className="mb-4">No saved research sets yet.</p>
-          <p>
-            Select a stock in the{" "}
-            <Link href="/screen" className="underline" style={{ color: "var(--blue)" }}>
-              Screener
-            </Link>
-            , generate comps, then click &ldquo;Save Research Set&rdquo;.
+          <p className="mb-3 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            No saved research sets yet
           </p>
+          <ol className="mb-5 inline-block text-left text-xs space-y-1.5" style={{ color: "var(--text-muted)" }}>
+            <li>1. Add tickers to your screener universe</li>
+            <li>2. Select an anchor stock and generate comps</li>
+            <li>3. Adjust multiples, then click &ldquo;Save Research Set&rdquo;</li>
+          </ol>
+          <div>
+            <Link
+              href="/screen"
+              className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500"
+            >
+              Start in Screener →
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">

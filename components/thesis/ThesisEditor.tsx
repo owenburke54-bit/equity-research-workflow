@@ -69,7 +69,7 @@ export default function ThesisEditor({
       style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
     >
       <h2 className="mb-4 text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-        Investment Thesis — {note.ticker || "Select a ticker"}
+        {note.ticker || "Select a ticker"} — Investment Memo
       </h2>
 
       {/* Valuation strip */}

@@ -136,7 +136,6 @@ export default function CompsPage() {
       `er:rel-val:${anchorTicker}`,
       JSON.stringify({ anchorPrice, impliedPricePE, impliedPriceEvEbitda })
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveRows, anchorPrice, ws?.anchorTicker]);
 
   const handleOverride = useCallback(
@@ -213,6 +212,18 @@ export default function CompsPage() {
   const medEvEbitda = effectiveRows.length > 1 ? medianOf(effectiveRows.map((r) => r.evEbitda)) : null;
   const anchorPE = anchorRow?.peRatio ?? 0;
   const anchorEvEbitda = anchorRow?.evEbitda ?? 0;
+
+  // EV/Rev strip — peer-only median (excludes anchor)
+  const peerEvRevValues = effectiveRows
+    .filter((r) => r.ticker !== ws.anchorTicker && r.evRevenue > 0)
+    .map((r) => r.evRevenue);
+  const peerMedianEvRev = medianOf(peerEvRevValues);
+  const anchorEvRev = anchorRow?.evRevenue ?? 0;
+  const evRevPremiumPct =
+    anchorEvRev > 0 && peerMedianEvRev && peerMedianEvRev > 0
+      ? ((anchorEvRev / peerMedianEvRev) - 1) * 100
+      : null;
+  const showEvRevStrip = evRevPremiumPct !== null && effectiveRows.length > 1;
 
   const pePremiumPct =
     anchorPrice > 0 && anchorPE > 0 && medPE && medPE > 0
@@ -384,6 +395,37 @@ export default function CompsPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* EV/Rev strip — peer-only median */}
+      {showEvRevStrip && (
+        <div
+          className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 text-sm"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+            EV/Rev
+          </span>
+          <span className="font-mono font-semibold" style={{ color: "var(--blue)" }}>
+            {ws.anchorTicker}
+          </span>
+          <span className="font-mono" style={{ color: "var(--text-primary)" }}>
+            {anchorEvRev.toFixed(1)}x
+          </span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>vs peer median</span>
+          <span className="font-mono" style={{ color: "var(--text-secondary)" }}>
+            {peerMedianEvRev!.toFixed(1)}x
+          </span>
+          <span
+            className="rounded px-1.5 py-0.5 text-xs font-semibold"
+            style={{
+              background: evRevPremiumPct! < 0 ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+              color: evRevPremiumPct! < 0 ? "#22c55e" : "#ef4444",
+            }}
+          >
+            {evRevPremiumPct! < 0 ? "▼" : "▲"}{evRevPremiumPct! >= 0 ? "+" : ""}{evRevPremiumPct!.toFixed(1)}%
+          </span>
         </div>
       )}
 

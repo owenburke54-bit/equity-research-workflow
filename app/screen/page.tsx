@@ -103,6 +103,10 @@ export default function ScreenPage() {
     [rawStocks]
   );
 
+  const coveragePct = rawStocks.length > 0
+    ? Math.round((completeCount / rawStocks.length) * 100)
+    : 0;
+
   const handleAddStock = useCallback(
     (stock: Stock) => addCustomStock(stock),
     [addCustomStock]
@@ -128,17 +132,43 @@ export default function ScreenPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8" style={{ paddingBottom: selectedTicker ? "5rem" : undefined }}>
-      <div className="mb-6 flex flex-col gap-1">
-        <h1
-          className="text-2xl font-bold tracking-tight"
-          style={{ color: "var(--text-primary)" }}
-        >
-          Screener
-        </h1>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1
+            className="text-2xl font-bold tracking-tight"
+            style={{ color: "var(--text-primary)" }}
+          >
+            Screener
+          </h1>
+          {rawStocks.length > 0 && (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {`${stocks.length} shown · ${coveragePct}% data coverage · ${watchlist.length} watchlisted · click a row to set anchor`}
+            </p>
+          )}
+        </div>
         {rawStocks.length > 0 && (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {`${stocks.length} shown · ${completeCount}/${rawStocks.length} with complete data · ${watchlist.length} watchlisted · click a row to select anchor`}
-          </p>
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <span
+              className="rounded-full border px-2.5 py-0.5 text-xs font-medium"
+              style={{
+                borderColor: "var(--border)",
+                color: "var(--text-secondary)",
+                background: "var(--bg-elevated)",
+              }}
+            >
+              Universe: {rawStocks.length}
+            </span>
+            <span
+              className="rounded-full border px-2.5 py-0.5 text-xs font-medium"
+              style={{
+                borderColor: "rgba(34,197,94,0.3)",
+                color: "#22c55e",
+                background: "rgba(34,197,94,0.08)",
+              }}
+            >
+              Yahoo Finance · live
+            </span>
+          </div>
         )}
       </div>
 
