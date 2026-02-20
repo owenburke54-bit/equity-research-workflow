@@ -39,6 +39,12 @@ export interface ThesisNote {
   risks: string;
   targetPrice: string;
   checklist: ChecklistItem[];
+  // Structured research framework fields
+  competitiveAdvantage: string;
+  catalyst: string;
+  valuation: string;
+  managementQuality: string;
+  psychology: string;
 }
 
 export interface WorkflowState {

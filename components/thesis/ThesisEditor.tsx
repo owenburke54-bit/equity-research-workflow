@@ -21,6 +21,40 @@ const textareaStyle = {
 
 const labelClass = "block mb-1 text-xs font-medium";
 
+const smallTextareaStyle = {
+  background: "var(--bg-elevated)",
+  borderColor: "var(--border)",
+  color: "var(--text-primary)",
+  minHeight: "60px",
+};
+
+function SmallField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className={labelClass} style={{ color: "var(--text-muted)" }}>
+        {label}
+      </label>
+      <textarea
+        className={textareaClass}
+        style={smallTextareaStyle}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    </div>
+  );
+}
+
 function Field({
   label,
   value,
@@ -149,6 +183,7 @@ export default function ThesisEditor({
         </div>
       )}
 
+      {/* Primary case fields — larger */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field
           label="Bull Case"
@@ -162,18 +197,45 @@ export default function ThesisEditor({
           onChange={(v) => update("bear", v)}
           placeholder="What could go wrong? Key downside risks..."
         />
-        <Field
-          label="Catalysts"
-          value={note.catalysts}
-          onChange={(v) => update("catalysts", v)}
-          placeholder="Upcoming events, product launches, earnings..."
-        />
-        <Field
-          label="Key Risks"
-          value={note.risks}
-          onChange={(v) => update("risks", v)}
-          placeholder="Regulatory, competitive, macro risks..."
-        />
+      </div>
+
+      {/* Structured research framework — compact grid */}
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+          Research Framework
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <SmallField
+            label="Competitive Advantage"
+            value={note.competitiveAdvantage ?? ""}
+            onChange={(v) => update("competitiveAdvantage", v)}
+            placeholder="Moat, differentiation, network effects..."
+          />
+          <SmallField
+            label="Catalyst"
+            value={note.catalyst ?? ""}
+            onChange={(v) => update("catalyst", v)}
+            placeholder="Near-term event or inflection point..."
+          />
+          <SmallField
+            label="Valuation"
+            value={note.valuation ?? ""}
+            onChange={(v) => update("valuation", v)}
+            placeholder="Multiple rationale, entry price logic..."
+          />
+          <SmallField
+            label="Quality of Management"
+            value={note.managementQuality ?? ""}
+            onChange={(v) => update("managementQuality", v)}
+            placeholder="Track record, incentives, communication..."
+          />
+          <SmallField
+            label="Psychology"
+            value={note.psychology ?? ""}
+            onChange={(v) => update("psychology", v)}
+            placeholder="Market narrative, sentiment, positioning..."
+          />
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-3">

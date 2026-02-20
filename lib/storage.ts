@@ -4,16 +4,27 @@ import { useState, useEffect, useCallback, startTransition } from "react";
 import type { Stock, CompsRow, ThesisNote, ChecklistItem } from "./types";
 
 const DEFAULT_CHECKLIST: ChecklistItem[] = [
-  { id: "1", label: "Download 10-K / 20-F", done: false },
-  { id: "2", label: "Download latest 10-Q", done: false },
-  { id: "3", label: "Read MD&A section", done: false },
-  { id: "4", label: "Build revenue model (segments)", done: false },
-  { id: "5", label: "Model EBITDA bridge", done: false },
-  { id: "6", label: "Forecast FCF 3–5 years", done: false },
-  { id: "7", label: "Run DCF valuation", done: false },
-  { id: "8", label: "Pull comps and size trading multiples", done: false },
-  { id: "9", label: "Review sell-side consensus estimates", done: false },
-  { id: "10", label: "Document key risks & mitigants", done: false },
+  // Phase 1 – Context
+  { id: "ctx-1", label: "Market cycle analysis", done: false },
+  { id: "ctx-2", label: "Macro environment review", done: false },
+  { id: "ctx-3", label: "Sector overview", done: false },
+  // Phase 2 – Positioning
+  { id: "pos-1", label: "Define comp group", done: false },
+  { id: "pos-2", label: "Select anchor stock", done: false },
+  { id: "pos-3", label: "Identify competitive positioning", done: false },
+  // Phase 3 – Financial Foundation
+  { id: "fin-1", label: "Income statement analysis", done: false },
+  { id: "fin-2", label: "Balance sheet analysis", done: false },
+  { id: "fin-3", label: "Cash flow statement analysis", done: false },
+  // Phase 4 – Valuation
+  { id: "val-1", label: "Forecast revenue and margins", done: false },
+  { id: "val-2", label: "Build DCF model", done: false },
+  { id: "val-3", label: "Cross-check with comps", done: false },
+  { id: "val-4", label: "Sensitivity analysis", done: false },
+  // Phase 5 – Conclusion
+  { id: "con-1", label: "Target price", done: false },
+  { id: "con-2", label: "Risk/reward summary", done: false },
+  { id: "con-3", label: "Final investment report", done: false },
 ];
 
 function readStorage<T>(key: string, fallback: T): T {
@@ -181,6 +192,11 @@ export function useThesis(ticker: string) {
     risks: "",
     targetPrice: "",
     checklist: DEFAULT_CHECKLIST.map((item) => ({ ...item })),
+    competitiveAdvantage: "",
+    catalyst: "",
+    valuation: "",
+    managementQuality: "",
+    psychology: "",
   };
 
   const [note, setNote] = useState<ThesisNote>(empty);
@@ -190,13 +206,22 @@ export function useThesis(ticker: string) {
     const stored = readStorage<ThesisNote | null>(key, null);
     startTransition(() => {
       if (stored) {
-        // Merge stored checklist with any new default items
-        const storedIds = new Set(stored.checklist.map((c) => c.id));
-        const merged = [
-          ...stored.checklist,
-          ...DEFAULT_CHECKLIST.filter((d) => !storedIds.has(d.id)),
-        ];
-        setNote({ ...stored, checklist: merged });
+        // If stored checklist uses old numeric IDs, reset to new phase-based checklist
+        const hasLegacyIds = stored.checklist.length > 0 && stored.checklist.every((c) => /^\d+$/.test(c.id));
+        const checklist = hasLegacyIds
+          ? DEFAULT_CHECKLIST.map((item) => ({ ...item }))
+          : (() => {
+              const storedIds = new Set(stored.checklist.map((c) => c.id));
+              return [
+                ...stored.checklist,
+                ...DEFAULT_CHECKLIST.filter((d) => !storedIds.has(d.id)),
+              ];
+            })();
+        setNote({
+          ...empty,
+          ...stored,
+          checklist,
+        });
       } else {
         setNote(empty);
       }

@@ -10,7 +10,7 @@ const STAGES = [
     icon: "⬛",
     title: "Screen",
     description:
-      "Filter and sort 15 stocks by sector, market cap, and valuation multiples. Star tickers to add them to your watchlist.",
+      "Define your investable universe and identify potential anchors. Filter by sector and size, inspect valuation dispersion, and select a company to begin structured analysis.",
     storageKey: "er:watchlist",
     statLabel: "watchlisted",
     countFn: (raw: string) => (JSON.parse(raw) as string[]).length,
