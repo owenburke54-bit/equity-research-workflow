@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Equity Research",
-  description: "Equity research workflow: screen, comps, thesis",
+  title: "Intrinsic",
+  description: "Institutional equity research — screen, comps, thesis",
 };
 
 export default function RootLayout({

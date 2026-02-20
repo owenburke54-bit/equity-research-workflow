@@ -111,16 +111,15 @@ function StageCard({
 
 export default function Home() {
   return (
-    <div className="mx-auto max-w-5xl px-6 py-12">
-      <h1
-        className="mb-2 text-3xl font-bold tracking-tight"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Equity Research Workflow
-      </h1>
-      <p className="mb-10 text-base" style={{ color: "var(--text-secondary)" }}>
-        A three-stage toolkit for screening, comps, and thesis development. Data persists in LocalStorage.
-      </p>
+    <div className="mx-auto max-w-5xl px-6 py-20">
+      <div className="mb-16 text-center">
+        <h1
+          className="text-5xl font-bold tracking-tight"
+          style={{ color: "var(--text-primary)" }}
+        >
+          Intrinsic
+        </h1>
+      </div>
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
         {STAGES.map((stage) => (

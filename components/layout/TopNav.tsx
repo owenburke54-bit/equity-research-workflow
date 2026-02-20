@@ -10,43 +10,60 @@ const NAV_LINKS = [
   { href: "/research", label: "Research" },
 ];
 
+// Concentric-circle logomark — outer ring = market price, inner ring = intrinsic value
+function Logomark() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="8.5" stroke="#3b82f6" strokeWidth="1" strokeOpacity="0.4" />
+      <circle cx="10" cy="10" r="4"   stroke="#3b82f6" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 export default function TopNav() {
   const pathname = usePathname();
 
   return (
     <header
-      className="fixed inset-x-0 top-0 z-50 flex h-14 items-center border-b px-6"
-      style={{
-        background: "var(--bg-surface)",
-        borderColor: "var(--border)",
-      }}
+      className="fixed inset-x-0 top-0 z-50 flex h-14 items-center justify-between border-b px-6"
+      style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
     >
-      <Link
-        href="/"
-        className="mr-8 text-sm font-semibold tracking-wide"
-        style={{ color: "var(--text-primary)" }}
-      >
-        Equity Research
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-2.5">
+        <Logomark />
+        <span
+          className="text-sm font-semibold tracking-tight"
+          style={{ color: "var(--text-primary)" }}
+        >
+          Intrinsic
+        </span>
       </Link>
 
-      <nav className="flex items-center gap-1">
-        {NAV_LINKS.map(({ href, label }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-blue-600/20 text-blue-400 border border-blue-600/30"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800"
-              }`}
-            >
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+      {/* Right side — nav + version badge */}
+      <div className="flex items-center gap-5">
+        <nav className="flex items-center gap-1">
+          {NAV_LINKS.map(({ href, label }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
+                  active
+                    ? "border border-blue-600/30 bg-blue-600/20 text-blue-400"
+                    : "text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
+                }`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <span className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
+          v0.1
+        </span>
+      </div>
     </header>
   );
 }
