@@ -7,7 +7,7 @@ import CompsTable from "@/components/comps/CompsTable";
 import type { CompsRow, ResearchSet } from "@/lib/types";
 import Link from "next/link";
 
-type MultipleField = "peRatio" | "evEbitda" | "evRevenue";
+type MultipleField = "peRatio" | "evEbitda" | "evRevenue" | "ebitda" | "revenue";
 type Overrides = Record<string, Partial<Record<MultipleField, number>>>;
 
 function exportCsv(rows: CompsRow[], anchorTicker: string) {

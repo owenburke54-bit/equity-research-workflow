@@ -4,7 +4,7 @@ import React from "react";
 import type { CompsRow } from "@/lib/types";
 import Button from "@/components/ui/Button";
 
-type MultipleField = "peRatio" | "evEbitda" | "evRevenue";
+type MultipleField = "peRatio" | "evEbitda" | "evRevenue" | "ebitda" | "revenue";
 
 interface AnchorValuation {
   pePremiumPct: number | null;
@@ -100,6 +100,46 @@ function EditableMultiple({
       onKeyDown={handleKeyDown}
       title="Click to edit"
       className="w-14 cursor-pointer rounded border border-transparent bg-transparent px-1 text-right text-sm font-mono placeholder:opacity-40 transition-colors hover:border-zinc-600 focus:cursor-text focus:border-blue-500/60 focus:bg-[var(--bg-elevated)] focus:outline-none"
+    />
+  );
+}
+
+// Editable dollar-value cell (Revenue, EBITDA). Value is stored in $B.
+// Shows "$X.XB" when unfocused; strips formatting on focus for clean editing.
+function EditableFinancial({ value, onSave }: { value: number; onSave: (v: number) => void }) {
+  function handleFocus(e: React.FocusEvent<HTMLInputElement>) {
+    const stripped = e.target.value.replace(/^\$/, "").replace(/[BMT]$/, "").trim();
+    e.target.value = stripped;
+    e.target.select();
+  }
+
+  function handleBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const parsed = parseFloat(e.target.value.trim());
+    const saved = isNaN(parsed) || parsed < 0 ? 0 : parsed;
+    if (saved !== value) onSave(saved);
+    e.target.value = saved > 0 ? `$${saved.toFixed(1)}B` : "";
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+    if (e.key === "Escape") {
+      (e.target as HTMLInputElement).value = value > 0 ? value.toFixed(1) : "";
+      (e.target as HTMLInputElement).blur();
+    }
+  }
+
+  return (
+    <input
+      key={value}
+      type="text"
+      inputMode="decimal"
+      defaultValue={value > 0 ? `$${value.toFixed(1)}B` : ""}
+      placeholder="—"
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      title="Click to edit (enter value in $B)"
+      className="w-16 cursor-pointer rounded border border-transparent bg-transparent px-1 text-right text-sm font-mono placeholder:opacity-40 transition-colors hover:border-zinc-600 focus:cursor-text focus:border-blue-500/60 focus:bg-[var(--bg-elevated)] focus:outline-none"
     />
   );
 }
@@ -261,10 +301,16 @@ export default function CompsTable({
                   {fmtMBT(r.ev)}
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmtMBT(r.revenue)}
+                  <EditableFinancial
+                    value={r.revenue}
+                    onSave={(v) => onOverride?.(r.ticker, "revenue", v)}
+                  />
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
-                  {fmtMBT(r.ebitda)}
+                  <EditableFinancial
+                    value={r.ebitda}
+                    onSave={(v) => onOverride?.(r.ticker, "ebitda", v)}
+                  />
                 </td>
                 <td className={`${tdClass} text-right font-mono`} style={{ color: "var(--text-secondary)" }}>
                   <span className="inline-flex items-center justify-end">
