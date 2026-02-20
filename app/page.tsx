@@ -117,7 +117,7 @@ export default function Home() {
           className="text-5xl font-bold tracking-tight"
           style={{ color: "var(--text-primary)" }}
         >
-          Intrinsic
+          Equity Research Workflow
         </h1>
       </div>
 
