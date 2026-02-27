@@ -95,6 +95,13 @@ export default function ResearchPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Link
+                    href={`/thesis?anchor=${set.anchorTicker}`}
+                    className="rounded border px-3 py-1 text-xs transition-colors hover:bg-zinc-700"
+                    style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                  >
+                    Thesis →
+                  </Link>
+                  <Link
                     href={`/research/${set.id}`}
                     className="rounded border px-3 py-1 text-xs transition-colors hover:bg-zinc-700"
                     style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}

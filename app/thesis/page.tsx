@@ -1,35 +1,33 @@
 "use client";
 
-import { useState, useEffect, startTransition, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, startTransition, Suspense, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useWatchlist, useThesis } from "@/lib/storage";
-import { getAllTickers } from "@/lib/stock-universe";
+import { useResearchSets } from "@/lib/working-set";
+import type { WorkingSet, ResearchSet } from "@/lib/types";
+import TickerSearch from "@/components/thesis/TickerSearch";
 import ThesisEditor from "@/components/thesis/ThesisEditor";
 import ModelChecklist from "@/components/thesis/ModelChecklist";
-
-const ALL_TICKERS = getAllTickers();
+import Link from "next/link";
 
 function ThesisContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const anchorParam = searchParams.get("anchor");
+
   const { watchlist } = useWatchlist();
-  const [selectedTicker, setSelectedTicker] = useState(anchorParam ?? "");
+  const { sets: researchSets } = useResearchSets();
+
+  const [selectedTicker, setSelectedTicker] = useState(anchorParam?.toUpperCase() ?? "");
+  const [selectedName, setSelectedName] = useState("");
+
   const { note, save } = useThesis(selectedTicker);
 
   const [currentPrice, setCurrentPrice] = useState(0);
   const [impliedPricePE, setImpliedPricePE] = useState(0);
   const [impliedPriceEvEbitda, setImpliedPriceEvEbitda] = useState(0);
 
-  // Default to first watchlisted ticker, then first available (only if no anchor param)
-  useEffect(() => {
-    if (selectedTicker) return;
-    startTransition(() => {
-      if (watchlist.length > 0) setSelectedTicker(watchlist[0]);
-      else setSelectedTicker(ALL_TICKERS[0]);
-    });
-  }, [watchlist, selectedTicker]);
-
-  // Load relative valuation data whenever the selected ticker changes
+  // Load relative valuation data and current price whenever selected ticker changes
   useEffect(() => {
     if (!selectedTicker) return;
 
@@ -44,7 +42,6 @@ function ThesisContent() {
       const stored = localStorage.getItem(`er:rel-val:${selectedTicker}`);
       if (stored) {
         const parsed = JSON.parse(stored) as {
-          anchorPrice?: number;
           impliedPricePE?: number;
           impliedPriceEvEbitda?: number;
         };
@@ -57,67 +54,117 @@ function ThesisContent() {
       // ignore parse errors
     }
 
-    // Fetch live current price
+    // Fetch live current price + company name
     fetch(`/api/quote/${selectedTicker}`)
       .then((r) => r.json())
-      .then((d: { stock?: { price: number } }) => {
+      .then((d: { stock?: { price: number; name?: string } }) => {
         startTransition(() => {
           setCurrentPrice(d.stock?.price ?? 0);
+          if (d.stock?.name) setSelectedName(d.stock.name);
         });
       })
       .catch(() => {
-        startTransition(() => {
-          setCurrentPrice(0);
-        });
+        startTransition(() => setCurrentPrice(0));
       });
   }, [selectedTicker]);
 
-  const selectClass =
-    "rounded border px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50";
-  const selectStyle = {
-    background: "var(--bg-elevated)",
-    borderColor: "var(--border)",
-    color: "var(--text-primary)",
-  };
+  function handleSelect(ticker: string, name: string) {
+    startTransition(() => {
+      setSelectedTicker(ticker);
+      if (name) setSelectedName(name);
+    });
+  }
+
+  // Restore a research set as the active working set and navigate to /comps
+  const handleOpenComps = useCallback((set: ResearchSet) => {
+    const ws: WorkingSet = {
+      anchorTicker: set.anchorTicker,
+      compTickers: set.compTickers,
+    };
+    try {
+      localStorage.setItem("er:working-set", JSON.stringify(ws));
+    } catch {
+      // ignore quota errors
+    }
+    router.push("/comps");
+  }, [router]);
+
+  // Research sets linked to the current ticker
+  const linkedSets = researchSets.filter(
+    (s) => s.anchorTicker === selectedTicker
+  );
 
   return (
     <>
-      {/* Ticker selector */}
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <label className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
-          Ticker
-        </label>
-        <select
-          className={selectClass}
-          style={selectStyle}
-          value={selectedTicker}
-          onChange={(e) => setSelectedTicker(e.target.value)}
-        >
-          {watchlist.length > 0 && (
-            <optgroup label="Watchlist">
-              {watchlist.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </optgroup>
-          )}
-          <optgroup label="All Tickers">
-            {ALL_TICKERS.filter((t) => !watchlist.includes(t)).map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-
-        {watchlist.length === 0 && (
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            Tip: star stocks in the Screener to populate your watchlist here.
-          </span>
+      {/* Ticker search */}
+      <div className="mb-5">
+        <TickerSearch
+          currentTicker={selectedTicker}
+          watchlist={watchlist}
+          onSelect={handleSelect}
+        />
+        {selectedTicker && (
+          <p className="mt-1.5 text-sm font-mono font-semibold" style={{ color: "var(--blue)" }}>
+            {selectedTicker}
+            {selectedName && (
+              <span className="ml-2 font-sans font-normal text-xs" style={{ color: "var(--text-muted)" }}>
+                {selectedName}
+              </span>
+            )}
+          </p>
         )}
       </div>
 
+      {/* Linked research sets */}
+      {selectedTicker && linkedSets.length > 0 && (
+        <div
+          className="mb-5 rounded-lg border p-4"
+          style={{ background: "var(--bg-surface)", borderColor: "var(--border)" }}
+        >
+          <p
+            className="mb-3 text-xs font-bold uppercase tracking-wider"
+            style={{ color: "var(--text-muted)" }}
+          >
+            Research Sets — {selectedTicker}
+          </p>
+          <div className="flex flex-col gap-2">
+            {linkedSets.map((set) => (
+              <div
+                key={set.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded border px-3 py-2"
+                style={{ borderColor: "var(--border)", background: "var(--bg-elevated)" }}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                    {set.name}
+                  </p>
+                  <p className="mt-0.5 text-xs" style={{ color: "var(--text-muted)" }}>
+                    {set.compTickers.length} peers · {new Date(set.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Link
+                    href={`/research/${set.id}`}
+                    className="rounded border px-2.5 py-1 text-xs transition-colors hover:bg-zinc-700"
+                    style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                  >
+                    View
+                  </Link>
+                  <button
+                    onClick={() => handleOpenComps(set)}
+                    className="rounded border px-2.5 py-1 text-xs transition-colors hover:bg-zinc-700"
+                    style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                  >
+                    Open Comps →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Thesis editor + checklist */}
       {selectedTicker ? (
         <div className="flex flex-col gap-5">
           <ThesisEditor
@@ -138,7 +185,7 @@ function ThesisContent() {
             color: "var(--text-muted)",
           }}
         >
-          Select a ticker above to get started.
+          Enter a ticker above to get started.
         </div>
       )}
     </>
@@ -156,7 +203,7 @@ export default function ThesisPage() {
           Thesis Builder
         </h1>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Document your investment thesis and track model build progress for each ticker.
+          Document your investment thesis and track model build progress for any ticker.
         </p>
       </div>
 
