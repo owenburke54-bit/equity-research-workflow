@@ -3,7 +3,7 @@
 import { useState, useEffect, startTransition, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useWatchlist, useThesis } from "@/lib/storage";
-import { getAllTickers } from "@/lib/mock-data";
+import { getAllTickers } from "@/lib/stock-universe";
 import ThesisEditor from "@/components/thesis/ThesisEditor";
 import ModelChecklist from "@/components/thesis/ModelChecklist";
 

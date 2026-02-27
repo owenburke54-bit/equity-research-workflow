@@ -419,3 +419,7 @@ export const SECTOR_LIST = Array.from(
 export const UNIVERSE_MAP = new Map(
   STOCK_UNIVERSE.map((s) => [s.ticker, s])
 );
+
+export function getAllTickers(): string[] {
+  return STOCK_UNIVERSE.map((s) => s.ticker);
+}

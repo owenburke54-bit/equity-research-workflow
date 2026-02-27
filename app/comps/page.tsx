@@ -11,14 +11,20 @@ type MultipleField = "peRatio" | "evEbitda" | "evRevenue" | "ebitda" | "revenue"
 type Overrides = Record<string, Partial<Record<MultipleField, number>>>;
 
 function exportCsv(rows: CompsRow[], anchorTicker: string) {
-  const headers = ["Ticker", "Name", "Mkt Cap ($B)", "EV ($B)", "Revenue ($B)", "EBITDA ($B)", "P/E", "EV/EBITDA", "EV/Rev"];
+  const headers = [
+    "Ticker", "Name", "Mkt Cap ($B)", "EV ($B)", "Revenue TTM ($B)",
+    "Rev Growth YoY (%)", "Gross Margin (%)", "EPS TTM ($)",
+    "P/E", "EV/EBITDA", "EV/Rev",
+  ];
   const csvRows = rows.map((r) => [
     r.ticker,
     `"${r.name}"`,
-    r.marketCap.toFixed(1),
-    r.ev.toFixed(1),
-    r.revenue.toFixed(1),
-    r.ebitda.toFixed(1),
+    r.marketCap.toFixed(2),
+    r.ev.toFixed(2),
+    r.revenue.toFixed(2),
+    r.revenueGrowth.toFixed(2),
+    r.grossMargin.toFixed(2),
+    r.eps.toFixed(2),
     r.peRatio.toFixed(1),
     r.evEbitda.toFixed(1),
     r.evRevenue.toFixed(1),

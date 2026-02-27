@@ -18,11 +18,14 @@ export interface CompsRow {
   name: string;
   marketCap: number; // $B
   ev: number; // $B
-  revenue: number; // $B
-  ebitda: number; // $B
-  peRatio: number;
-  evEbitda: number;
-  evRevenue: number;
+  revenue: number; // $B TTM
+  ebitda: number; // $B TTM
+  revenueGrowth: number; // % YoY (quarterly YoY basis from Yahoo financialData.revenueGrowth)
+  grossMargin: number; // % TTM (from Yahoo financialData.grossMargins × 100)
+  eps: number; // $ TTM diluted (from Yahoo defaultKeyStatistics.trailingEps)
+  peRatio: number; // trailing P/E (summaryDetail.trailingPE)
+  evEbitda: number; // defaultKeyStatistics.enterpriseToEbitda — direct, not derived
+  evRevenue: number; // defaultKeyStatistics.enterpriseToRevenue — direct, not derived
 }
 
 export interface ChecklistItem {

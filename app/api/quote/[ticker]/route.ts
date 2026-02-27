@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { UNIVERSE_MAP } from "@/lib/stock-universe";
-import { getCompsForTicker } from "@/lib/mock-data";
 import type { Stock, CompsRow } from "@/lib/types";
 
 const yf = new YahooFinance();
@@ -30,6 +29,12 @@ export async function GET(
     const ebitdaB = (fin?.ebitda ?? 0) / 1e9;
     // trailingPE lives in summaryDetail, not price
     const peRatio = sd?.trailingPE ?? 0;
+    // revenueGrowth: quarterly YoY (most recent quarter vs. same quarter prior year)
+    const revenueGrowth = (fin?.revenueGrowth ?? 0) * 100;
+    // grossMargins: TTM gross margin as decimal → multiply by 100
+    const grossMargin = (fin?.grossMargins ?? 0) * 100;
+    // trailingEps: TTM diluted EPS
+    const eps = stats?.trailingEps ?? 0;
 
     const compsRow: CompsRow = {
       ticker: sym,
@@ -38,6 +43,9 @@ export async function GET(
       ev: evB,
       revenue: revenueB,
       ebitda: ebitdaB,
+      revenueGrowth,
+      grossMargin,
+      eps,
       peRatio,
       evEbitda: stats?.enterpriseToEbitda ?? 0,
       evRevenue: stats?.enterpriseToRevenue ?? 0,
@@ -63,38 +71,9 @@ export async function GET(
     return NextResponse.json({ stock, compsRow, live: true });
   } catch (err) {
     console.error(`Yahoo Finance quoteSummary failed for ${sym}:`, err);
-
-    const mockComps = getCompsForTicker(sym);
-    const universalEntry = UNIVERSE_MAP.get(sym);
-
-    if (!mockComps && !universalEntry) {
-      return NextResponse.json(
-        { error: `Ticker "${sym}" not found. Check the symbol and try again.` },
-        { status: 404 }
-      );
-    }
-
-    const fallbackStock: Stock | null = universalEntry
-      ? {
-          ticker: sym,
-          name: universalEntry.name,
-          sector: universalEntry.sector,
-          price: 0,
-          change1d: 0,
-          marketCap: 0,
-          peRatio: 0,
-          pbRatio: 0,
-          evEbitda: 0,
-          revenueGrowthYoY: 0,
-          ebitdaMargin: 0,
-          isWatchlisted: false,
-        }
-      : null;
-
-    return NextResponse.json({
-      stock: fallbackStock,
-      compsRow: mockComps ?? null,
-      live: false,
-    });
+    return NextResponse.json(
+      { error: `Could not fetch data for "${sym}". Check the symbol and try again.` },
+      { status: 404 }
+    );
   }
 }
