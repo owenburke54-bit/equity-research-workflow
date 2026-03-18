@@ -189,13 +189,11 @@ export default function ThesisEditor({
           label="Bull Case"
           value={note.bull}
           onChange={(v) => update("bull", v)}
-          placeholder="Why is this a buy? Core upside drivers..."
         />
         <Field
           label="Bear Case"
           value={note.bear}
           onChange={(v) => update("bear", v)}
-          placeholder="What could go wrong? Key downside risks..."
         />
       </div>
 
@@ -206,34 +204,34 @@ export default function ThesisEditor({
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <SmallField
-            label="Competitive Advantage"
+            label="Competitive Moat"
             value={note.competitiveAdvantage ?? ""}
             onChange={(v) => update("competitiveAdvantage", v)}
-            placeholder="Moat, differentiation, network effects..."
           />
           <SmallField
-            label="Catalyst"
+            label="Drivers"
             value={note.catalyst ?? ""}
             onChange={(v) => update("catalyst", v)}
-            placeholder="Near-term event or inflection point..."
           />
           <SmallField
-            label="Valuation"
+            label="Current Valuation"
             value={note.valuation ?? ""}
             onChange={(v) => update("valuation", v)}
-            placeholder="Multiple rationale, entry price logic..."
           />
           <SmallField
-            label="Quality of Management"
+            label="Leadership"
             value={note.managementQuality ?? ""}
             onChange={(v) => update("managementQuality", v)}
-            placeholder="Track record, incentives, communication..."
           />
           <SmallField
-            label="Psychology"
+            label="Market Sentiment"
             value={note.psychology ?? ""}
             onChange={(v) => update("psychology", v)}
-            placeholder="Market narrative, sentiment, positioning..."
+          />
+          <SmallField
+            label="Risks"
+            value={note.risks ?? ""}
+            onChange={(v) => update("risks", v)}
           />
         </div>
       </div>
